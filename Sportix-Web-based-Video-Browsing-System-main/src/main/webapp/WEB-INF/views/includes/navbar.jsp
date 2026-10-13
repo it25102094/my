@@ -1,7 +1,9 @@
 <%@ page contentType="text/html;charset=UTF-8" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%-- Original servlet path (after forward) so the current tab can be highlighted --%>
+<c:set var="navPath" value="${requestScope['jakarta.servlet.forward.servlet_path']}"/>
 
-<nav class="navbar">
+<nav class="navbar" data-ctx="${pageContext.request.contextPath}">
     <!-- 1. Logo -->
     <a href="${pageContext.request.contextPath}/home" class="navbar-logo">
         SPORTI<span>X</span>
@@ -12,11 +14,11 @@
 
     <!-- 3. Navigation Links -->
     <div class="navbar-links">
-        <a href="${pageContext.request.contextPath}/home" class="active">Home</a>
-        <a href="${pageContext.request.contextPath}/live">Live</a>
-        <a href="${pageContext.request.contextPath}/highlights">Highlights</a>
-        <a href="${pageContext.request.contextPath}/shorts">Shorts</a>
-        <a href="${pageContext.request.contextPath}/categories">Sports</a>
+        <a href="${pageContext.request.contextPath}/home" class="${navPath == '/home' || empty navPath || navPath == '' ? 'active' : ''}">Home</a>
+        <a href="${pageContext.request.contextPath}/live" class="${navPath == '/live' ? 'active' : ''}">Live</a>
+        <a href="${pageContext.request.contextPath}/highlights" class="${navPath == '/highlights' ? 'active' : ''}">Highlights</a>
+        <a href="${pageContext.request.contextPath}/shorts" class="${navPath == '/shorts' ? 'active' : ''}">Shorts</a>
+        <a href="${pageContext.request.contextPath}/categories" class="${navPath == '/categories' ? 'active' : ''}">Sports</a>
     </div>
 
     <!-- 4. Search Bar -->
@@ -49,11 +51,20 @@
 
         <c:choose>
             <c:when test="${not empty sessionScope.userId}">
-                <!-- New Links for Member 3 (CRUD) -->
+                <!-- Member 3 (Content Posting CRUD) -->
                 <a href="${pageContext.request.contextPath}/user/add-video" class="btn-accent" style="padding: 4px 10px; font-size: 0.85rem;">+ Upload</a>
                 <a href="${pageContext.request.contextPath}/user/my-videos">My Videos</a>
 
-                <a href="${pageContext.request.contextPath}/notifications" title="Notifications">&#128276;</a>
+                <!-- Member 5 (Advertising) & Member 6 (Admin) role links -->
+                <c:if test="${sessionScope.role == 'ADVERTISER' || sessionScope.role == 'ADMIN'}">
+                    <a href="${pageContext.request.contextPath}/advertiser/dashboard" title="Advertiser Dashboard">&#128226; Ads</a>
+                </c:if>
+                <c:if test="${sessionScope.role == 'ADMIN'}">
+                    <a href="${pageContext.request.contextPath}/admin" title="Admin Dashboard">&#128737; Admin</a>
+                </c:if>
+
+                <!-- Member 5 (Notifications) - unread badge set by NotificationBadgeFilter -->
+                <a href="${pageContext.request.contextPath}/notifications" title="Notifications">&#128276;<c:if test="${unreadNotificationCount > 0}"><span class="notif-badge">${unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</span></c:if></a>
                 <a href="${pageContext.request.contextPath}/user/watchlater">Watch Later</a>
                 <a href="${pageContext.request.contextPath}/profile">Hi, <c:out value="${sessionScope.displayName}"/></a>
                 <a href="${pageContext.request.contextPath}/logout">Logout</a>

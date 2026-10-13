@@ -17,6 +17,8 @@ public class User {
     private String status;          // ACTIVE, SUSPENDED
     private String favouriteSports;
     private boolean hideScores;     // Simple name: Hide Scores
+    private String companyName;     // Only used for ADVERTISER accounts (Member 5)
+    private java.sql.Timestamp createdAt;
 
     public User() {
     }
@@ -64,6 +66,17 @@ public class User {
 
     public boolean isHideScores() { return hideScores; }
     public void setHideScores(boolean hideScores) { this.hideScores = hideScores; }
+
+    public String getCompanyName() { return companyName; }
+    public void setCompanyName(String companyName) { this.companyName = companyName; }
+
+    public java.sql.Timestamp getCreatedAt() { return createdAt; }
+    public void setCreatedAt(java.sql.Timestamp createdAt) { this.createdAt = createdAt; }
+
+    /** Full name helper used by the admin user table and advertiser views. */
+    public String getFullName() {
+        return ((firstName != null ? firstName : "") + " " + (lastName != null ? lastName : "")).trim();
+    }
 
     // Alias so existing code calling isSpoilerFree() or setSpoilerFree() still compiles without errors
     public boolean isSpoilerFree() { return hideScores; }

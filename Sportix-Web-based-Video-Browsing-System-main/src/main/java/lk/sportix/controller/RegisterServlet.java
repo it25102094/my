@@ -22,20 +22,24 @@ public class RegisterServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
-        String username = request.getParameter("username");
-        String firstName = request.getParameter("firstName");
-        String lastName = request.getParameter("lastName");
-        String email = request.getParameter("email");
-        String password = request.getParameter("password");
+        // FIX: contact number (needed by Forgot Password), account type and company name are captured,
+        // and the user now sees the REAL validation problem instead of one generic message.
+        String error = userService.register(
+                request.getParameter("username"),
+                request.getParameter("firstName"),
+                request.getParameter("lastName"),
+                request.getParameter("email"),
+                request.getParameter("password"),
+                request.getParameter("contactNumber"),
+                request.getParameter("accountType"),
+                request.getParameter("companyName"));
 
-        boolean isRegistered = userService.register(username, firstName, lastName, email, password);
-
-        if (isRegistered) {
+        if (error == null) {
             // Success: Redirect to login page
             response.sendRedirect(request.getContextPath() + "/login?registered=true");
         } else {
-            // Failure: Forward back to the form with an error message
-            request.setAttribute("error", "Registration failed. Username or email may already be in use.");
+            // Failure: Forward back to the form with the error message (form values are kept via ${param})
+            request.setAttribute("error", error);
             request.getRequestDispatcher("/WEB-INF/views/register.jsp").forward(request, response);
         }
     }

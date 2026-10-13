@@ -122,7 +122,7 @@ public class WatchLaterDAO {
     public List<WatchLater> getItemsByUser(int userId, Integer folderIdFilter) {
         List<WatchLater> list = new ArrayList<>();
         String sql = "SELECT w.item_id, w.user_id, w.video_id, w.folder_id, w.notes, " +
-                "v.title AS video_title, v.thumbnail_url, v.is_live_now, " +
+                "v.title AS video_title, v.thumbnail_url, v.is_live_now, v.view_count, " +
                 "s.sport_name, f.folder_name " +
                 "FROM watch_later_items w " +
                 "JOIN videos v ON w.video_id = v.video_id " +
@@ -152,6 +152,7 @@ public class WatchLaterDAO {
                     wl.setVideoTitle(rs.getString("video_title"));
                     wl.setThumbnailUrl(rs.getString("thumbnail_url"));
                     wl.setLive(rs.getBoolean("is_live_now"));
+                    wl.setViewCount(rs.getInt("view_count"));
                     wl.setSportName(rs.getString("sport_name"));
                     wl.setFolderName(rs.getString("folder_name"));
                     list.add(wl);

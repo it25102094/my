@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
     <style>
         .form-container {
-            max-width: 600px;
+            max-width: 680px;
             margin: 40px auto;
             background-color: var(--color-surface);
             padding: 30px;
@@ -26,7 +26,6 @@
             color: var(--color-title);
         }
         textarea.form-control { resize: vertical; min-height: 100px; }
-        .form-error { color: #ef4444; background: #fee2e2; padding: 12px; border-radius: 6px; border: 1px solid #f87171; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -35,57 +34,20 @@
 
 <section class="page-section">
     <div class="form-container">
-        <h2 style="margin-bottom: 20px; color: var(--color-accent);">Edit Video</h2>
+        <h2 style="margin-bottom: 8px; color: var(--color-accent-readable);">Edit Video</h2>
+        <p class="muted" style="margin-bottom: 20px;">Current status: <span class="badge ${video.status == 'APPROVED' ? 'badge-green' : (video.status == 'PENDING' ? 'badge-yellow' : 'badge-red')}">${video.status}</span>
+            <c:if test="${video.status == 'REJECTED'}"> &mdash; saving your changes re-submits the video for approval.</c:if>
+        </p>
 
         <!-- UI/UX: Error Feedback Loop -->
-        <c:if test="${not empty sessionScope.flashMessage}">
-            <div class="form-error">
-                <c:out value="${sessionScope.flashMessage}"/>
-            </div>
-            <% session.removeAttribute("flashMessage"); %>
+        <c:if test="${not empty error}">
+            <div class="form-error" style="margin-bottom: 15px;"><c:out value="${error}"/></div>
         </c:if>
 
         <form method="post" action="${pageContext.request.contextPath}/user/edit-video">
-            <input type="hidden" name="videoId" value="${videoId}">
+            <input type="hidden" name="videoId" value="${video.videoId}">
 
-            <div class="form-group">
-                <label>Video Title</label>
-                <!-- Validation: maxlength="150" matches the backend Service layer -->
-                <input type="text" name="title" class="form-control" required maxlength="150" value="<c:out value='${title}'/>">
-            </div>
-
-            <div class="form-group">
-                <label>YouTube Link (Watch, Shorts, or Live)</label>
-                <input type="url" name="youtubeUrl" class="form-control" required value="<c:out value='${youtubeUrl}'/>">
-            </div>
-
-            <div class="form-group">
-                <label>Description (Optional)</label>
-                <textarea name="description" class="form-control"><c:out value='${description}'/></textarea>
-            </div>
-
-            <div style="display: flex; gap: 15px;">
-                <div class="form-group" style="flex: 1;">
-                    <label>Video Type</label>
-                    <select name="videoType" class="form-control" required>
-                        <option value="HIGHLIGHT" <c:if test="${videoType eq 'HIGHLIGHT'}">selected</c:if>>Highlights</option>
-                        <option value="LIVE" <c:if test="${videoType eq 'LIVE'}">selected</c:if>>Live Match</option>
-                        <option value="SHORT" <c:if test="${videoType eq 'SHORT'}">selected</c:if>>Shorts</option>
-                        <option value="INTERVIEW" <c:if test="${videoType eq 'INTERVIEW'}">selected</c:if>>Interview</option>
-                    </select>
-                </div>
-
-                <div class="form-group" style="flex: 1;">
-                    <label>Sport</label>
-                    <select name="sportId" class="form-control" required>
-                        <option value="1" <c:if test="${sportId == 1}">selected</c:if>>Cricket</option>
-                        <option value="2" <c:if test="${sportId == 2}">selected</c:if>>Football</option>
-                        <option value="3" <c:if test="${sportId == 3}">selected</c:if>>Basketball</option>
-                        <option value="4" <c:if test="${sportId == 4}">selected</c:if>>Formula 1</option>
-                        <option value="5" <c:if test="${sportId == 5}">selected</c:if>>Tennis</option>
-                    </select>
-                </div>
-            </div>
+            <%@ include file="includes/video-form-fields.jsp" %>
 
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <a href="${pageContext.request.contextPath}/user/my-videos" class="btn-outline" style="flex: 1; text-align: center; padding: 12px; border-radius: 8px;">Cancel</a>
@@ -95,6 +57,4 @@
     </div>
 </section>
 
-<script src="${pageContext.request.contextPath}/js/theme.js"></script>
-</body>
-</html>
+<%@ include file="includes/footer.jsp" %>

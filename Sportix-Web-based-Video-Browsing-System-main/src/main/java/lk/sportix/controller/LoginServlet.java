@@ -42,13 +42,13 @@ public class LoginServlet extends HttpServlet {
         session.setAttribute("role", user.getRole());
         session.setAttribute("spoilerFree", user.isSpoilerFree());
 
-        // Role-Based Redirection: Send ADMINs straight to the Admin Dashboard
+        // Role-Based Redirection: admins -> Admin Dashboard, advertisers -> Advertiser Dashboard
         if ("ADMIN".equalsIgnoreCase(user.getRole())) {
             response.sendRedirect(request.getContextPath() + "/admin");
+        } else if ("ADVERTISER".equalsIgnoreCase(user.getRole())) {
+            response.sendRedirect(request.getContextPath() + "/advertiser/dashboard");
         } else {
             response.sendRedirect(request.getContextPath() + "/");
         }
     }
 }
-
-

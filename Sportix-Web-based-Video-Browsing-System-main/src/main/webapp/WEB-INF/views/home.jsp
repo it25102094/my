@@ -41,6 +41,19 @@
 </section>
 </c:if>
 
+<%@ include file="includes/flash.jsp" %>
+
+<!-- MEMBER 5: HOME PAGE BANNER AD (chosen by PriorityAdSelectionStrategy, impression counted) -->
+<c:if test="${not empty bannerAds}">
+<section class="page-section" style="padding-top: 0;">
+    <div class="ad-slot">
+        <c:forEach var="ad" items="${bannerAds}">
+            <%@ include file="includes/ad-card.jsp" %>
+        </c:forEach>
+    </div>
+</section>
+</c:if>
+
 <!-- TOP TRENDING VIDEOS -->
 <section class="page-section">
     <div class="section-header">
@@ -112,6 +125,7 @@
 <section class="page-section">
     <div class="section-header">
         <h2>Exclusive Interviews</h2>
+        <a href="${pageContext.request.contextPath}/interviews">See all</a>
     </div>
     <div class="video-grid">
         <c:forEach var="v" items="${interviewVideos}">

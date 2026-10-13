@@ -120,6 +120,44 @@ public class FollowTeamDAO {
         }
     }
 
+    /**
+     * READ (used by the Observer pattern - Member 5): every ACTIVE user who follows at least one
+     * team of the given video AND has upload alerts switched on. The uploader is excluded
+     * (no alert for your own video). One row per (user, team) - duplicates per user are
+     * removed by UserObserver.equals().
+     */
+    public List<FollowTeam> getFollowersToNotify(int videoId) {
+        List<FollowTeam> list = new ArrayList<>();
+        String sql = "SELECT ft.user_id, ft.team_id, t.team_name " +
+                "FROM follow_teams ft " +
+                "JOIN video_teams vt ON vt.team_id = ft.team_id " +
+                "JOIN teams t ON t.team_id = ft.team_id " +
+                "JOIN users u ON u.user_id = ft.user_id " +
+                "JOIN videos v ON v.video_id = vt.video_id " +
+                "WHERE vt.video_id = ? AND ft.notify_on_upload = TRUE AND u.status = 'ACTIVE' " +
+                "AND ft.user_id <> v.uploaded_by " +
+                "ORDER BY ft.user_id, t.team_name";
+
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, videoId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    FollowTeam ft = new FollowTeam();
+                    ft.setUserId(rs.getInt("user_id"));
+                    ft.setTeamId(rs.getInt("team_id"));
+                    ft.setTeamName(rs.getString("team_name"));
+                    ft.setNotifyOnUpload(true);
+                    list.add(ft);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("FollowTeamDAO.getFollowersToNotify error: " + e.getMessage());
+        }
+        return list;
+    }
+
     // DELETE: Unfollow a team
     public boolean unfollowTeam(int userId, int teamId) {
         String sql = "DELETE FROM follow_teams WHERE user_id = ? AND team_id = ?";

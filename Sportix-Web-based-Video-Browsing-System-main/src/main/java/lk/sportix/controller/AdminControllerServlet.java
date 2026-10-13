@@ -5,95 +5,137 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
+import lk.sportix.service.AdService;
 import lk.sportix.service.AdminService;
-import lk.sportix.util.DBConnection;
+import lk.sportix.service.NotificationService;
+import lk.sportix.util.WebUtil;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
+/**
+ * AdminControllerServlet — Member 6: Reporting, Analytics & Admin Management.
+ *
+ * FIXES:
+ *  - SECURITY: only checked "is logged in", and AuthFilter treated "/admin" (no trailing slash)
+ *    as public, so ANY user could open the admin dashboard and approve/reject videos.
+ *    Now the ADMIN role is required here and in AuthFilter.
+ *  - MVC: raw SQL moved from this servlet into AdminDAO.
+ *  - New admin features: user management, saved report CRUD, advertising oversight,
+ *    announcements (Member 5) and the admin activity log.
+ */
 @WebServlet("/admin")
 public class AdminControllerServlet extends HttpServlet {
 
     private final AdminService adminService = new AdminService();
+    private final AdService adService = new AdService();
+    private final NotificationService notificationService = new NotificationService();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("userId") == null) {
-            response.sendRedirect(request.getContextPath() + "/login");
-            return;
-        }
+        if (!checkAdmin(request, response)) return;
 
-        List<Map<String, Object>> pendingVideos = new ArrayList<>();
-        List<Map<String, Object>> pendingReports = new ArrayList<>();
-
-        try (Connection conn = DBConnection.getInstance().getConnection()) {
-            // Fetch Pending Videos
-            String videoSql = "SELECT video_id, title, youtube_url FROM videos WHERE submission_status = 'PENDING'";
-            try (PreparedStatement stmt = conn.prepareStatement(videoSql); ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> v = new HashMap<>();
-                    v.put("videoId", rs.getInt("video_id"));
-                    v.put("title", rs.getString("title"));
-                    v.put("youtubeUrl", rs.getString("youtube_url"));
-                    pendingVideos.add(v);
-                }
-            }
-
-            // Fetch Pending Reports
-            String reportSql = "SELECT c.report_id, c.reason, v.title FROM content_reports c LEFT JOIN videos v ON c.video_id = v.video_id WHERE c.status = 'PENDING'";
-            try (PreparedStatement stmt = conn.prepareStatement(reportSql); ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> rep = new HashMap<>();
-                    rep.put("reportId", rs.getInt("report_id"));
-                    rep.put("reason", rs.getString("reason"));
-                    rep.put("videoTitle", rs.getString("title") != null ? rs.getString("title") : "Comment/User Report");
-                    pendingReports.add(rep);
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("AdminController GET error: " + e.getMessage());
-        }
-
-        request.setAttribute("pendingVideos", pendingVideos);
-        request.setAttribute("pendingReports", pendingReports);
+        request.setAttribute("pendingVideos", adminService.getPendingVideos());
+        request.setAttribute("pendingReports", adminService.getPendingReports());
         request.setAttribute("systemStats", adminService.getSystemStatistics());
+        request.setAttribute("users", adminService.getAllUsers());
+        request.setAttribute("savedReports", adminService.getSavedReports());
+        request.setAttribute("adminLogs", adminService.getRecentLogs());
+        request.setAttribute("campaigns", adService.getAllCampaigns());
+        request.setAttribute("announcements", notificationService.getRecentAnnouncements());
 
         request.getRequestDispatcher("/WEB-INF/views/admin-dashboard.jsp").forward(request, response);
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("userId") == null) {
-            response.sendRedirect(request.getContextPath() + "/login");
-            return;
-        }
+        if (!checkAdmin(request, response)) return;
 
-        int adminId = (Integer) session.getAttribute("userId");
+        int adminId = WebUtil.currentUserId(request);
         String action = request.getParameter("action");
+        String anchor = "";
 
         try {
             if ("updateVideoStatus".equals(action)) {
                 int videoId = Integer.parseInt(request.getParameter("videoId"));
                 String status = request.getParameter("status");
                 adminService.processVideoStatusUpdate(videoId, status, adminId);
+                WebUtil.flash(request, "Video " + status.toLowerCase() + ". The uploader (and, if approved, the team followers) were notified.");
+                anchor = "#moderation";
+
             } else if ("updateReportStatus".equals(action)) {
                 int reportId = Integer.parseInt(request.getParameter("reportId"));
                 String status = request.getParameter("status");
-                adminService.processReportStatusUpdate(reportId, status, adminId);
+                adminService.processReportStatusUpdate(reportId, status, adminId, request.getParameter("notes"));
+                WebUtil.flash(request, "Report " + status.toLowerCase() + ". The reporter was notified.");
+                anchor = "#reports";
+
+            } else if ("removeReportedVideo".equals(action)) {
+                int reportId = Integer.parseInt(request.getParameter("reportId"));
+                adminService.removeReportedVideo(reportId, adminId);
+                WebUtil.flash(request, "The reported video was removed.");
+                anchor = "#reports";
+
+            } else if ("changeRole".equals(action)) {
+                adminService.changeUserRole(adminId, Integer.parseInt(request.getParameter("userId")), request.getParameter("role"));
+                WebUtil.flash(request, "User role updated.");
+                anchor = "#users";
+
+            } else if ("changeStatus".equals(action)) {
+                adminService.changeUserStatus(adminId, Integer.parseInt(request.getParameter("userId")), request.getParameter("status"));
+                WebUtil.flash(request, "User account status updated.");
+                anchor = "#users";
+
+            } else if ("deleteUser".equals(action)) {
+                adminService.deleteUser(adminId, Integer.parseInt(request.getParameter("userId")));
+                WebUtil.flash(request, "User deleted.");
+                anchor = "#users";
+
+            } else if ("saveReport".equals(action)) {
+                adminService.saveStatisticsSnapshot(adminId, request.getParameter("reportTitle"));
+                WebUtil.flash(request, "Analytics snapshot saved.");
+                anchor = "#saved-reports";
+
+            } else if ("renameReport".equals(action)) {
+                adminService.renameSavedReport(Integer.parseInt(request.getParameter("reportId")), request.getParameter("reportTitle"));
+                WebUtil.flash(request, "Saved report renamed.");
+                anchor = "#saved-reports";
+
+            } else if ("deleteReport".equals(action)) {
+                adminService.deleteSavedReport(Integer.parseInt(request.getParameter("reportId")));
+                WebUtil.flash(request, "Saved report deleted.");
+                anchor = "#saved-reports";
+
+            } else if ("campaignStatus".equals(action)) {
+                adService.setCampaignStatus(Integer.parseInt(request.getParameter("campaignId")), request.getParameter("status"), adminId, true);
+                WebUtil.flash(request, "Campaign status updated.");
+                anchor = "#advertising";
+
+            } else if ("deleteCampaign".equals(action)) {
+                adService.deleteCampaign(Integer.parseInt(request.getParameter("campaignId")), adminId, true);
+                WebUtil.flash(request, "Campaign deleted.");
+                anchor = "#advertising";
+
+            } else {
+                WebUtil.flash(request, "Action failed: unknown action.");
             }
+        } catch (NumberFormatException e) {
+            WebUtil.flash(request, "Action failed: invalid request data.");
         } catch (Exception e) {
-            session.setAttribute("flashMessage", "Action failed: " + e.getMessage());
+            WebUtil.flash(request, "Action failed: " + e.getMessage());
         }
 
-        response.sendRedirect(request.getContextPath() + "/admin");
+        response.sendRedirect(request.getContextPath() + "/admin" + anchor);
+    }
+
+    private boolean checkAdmin(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        if (WebUtil.currentUserId(request) <= 0) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return false;
+        }
+        if (!WebUtil.isAdmin(request)) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Administrator access only.");
+            return false;
+        }
+        return true;
     }
 }

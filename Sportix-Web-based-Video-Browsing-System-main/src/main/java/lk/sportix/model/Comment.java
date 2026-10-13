@@ -12,6 +12,7 @@ public class Comment {
     private String username; // Fetched via JOIN for UI display
     private String commentText;
     private Timestamp createdAt;
+    private boolean edited;  // true when updated_at > created_at (comment was edited)
 
     public Comment() {}
 
@@ -41,4 +42,7 @@ public class Comment {
 
     public Timestamp getCreatedAt() { return createdAt; }
     public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }
+
+    public boolean isEdited() { return edited; }
+    public void setEdited(boolean edited) { this.edited = edited; }
 }

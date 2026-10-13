@@ -1,54 +1,33 @@
 package lk.sportix.service;
 
 import lk.sportix.dao.VideoDAO;
+import lk.sportix.model.Category;
+import lk.sportix.model.Sport;
 import lk.sportix.model.Team;
 import lk.sportix.model.Video;
-import lk.sportix.pattern.Observer;
-import lk.sportix.pattern.Subject;
-import lk.sportix.pattern.UserObserver;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * VideoService — Service layer handling business logic and strict validation.
- * Implements the Subject interface for the Observer Design Pattern.
+ * VideoService — Service layer handling business logic and strict validation (Members 2 & 3).
+ *
+ * DESIGN PATTERN 1: Data Access Object (DAO) — all SQL lives in VideoDAO.
+ * DESIGN PATTERN 2: Observer — when a video becomes publicly visible, the followers of its
+ *                   teams are notified through NotificationService (VideoUploadSubject +
+ *                   UserObserver, Member 5). The old version registered a hard-coded dummy
+ *                   observer (user #1) and pushed a message on EVERY upload, even pending ones.
  */
-public class VideoService implements Subject {
+public class VideoService {
 
-    // DESIGN PATTERN 1: Data Access Object (DAO) Pattern
+    private static final Set<String> VIDEO_TYPES = Set.of("LIVE", "HIGHLIGHT", "SHORT", "INTERVIEW");
+
     private final VideoDAO videoDAO = new VideoDAO();
-
-    // DESIGN PATTERN 2: Observer Pattern (Subject state)
-    private final List<Observer> observers = new ArrayList<>();
-
-    public VideoService() {
-        // In a real application, you would load subscribed users from the database here.
-        // For the viva demonstration, we register a dummy observer to prove the pattern works.
-        registerObserver(new UserObserver(1));
-    }
+    private final NotificationService notificationService = new NotificationService();
 
     // ===================================================================================
-    // OBSERVER PATTERN IMPLEMENTATION
-    // ===================================================================================
-
-    @Override
-    public void registerObserver(Observer o) {
-        observers.add(o);
-    }
-
-    @Override
-    public void removeObserver(Observer o) {
-        observers.remove(o);
-    }
-
-    @Override
-    public void notifyObservers(String message) {
-        for (Observer observer : observers) {
-            observer.update(message);
-        }
-    }
-// ===================================================================================
     // BROWSING & SEARCH METHODS (Member 2)
     // ===================================================================================
 
@@ -69,9 +48,16 @@ public class VideoService implements Subject {
         return videoDAO.getVideosByType(categoryType.trim().toUpperCase(), safeLimit);
     }
 
+    /** Public: APPROVED videos only. */
     public Video getVideoById(int videoId) {
         if (videoId <= 0) return null;
         return videoDAO.getVideoById(videoId);
+    }
+
+    /** Any status — used for the uploader's own preview and for admin moderation. */
+    public Video getVideoByIdAnyStatus(int videoId) {
+        if (videoId <= 0) return null;
+        return videoDAO.getVideoByIdAnyStatus(videoId);
     }
 
     public List<Video> searchVideos(String keyword) {
@@ -95,41 +81,35 @@ public class VideoService implements Subject {
         }
         return videoDAO.getVideosBySportName(sportName);
     }
-      // ===================================================================================
+
+    // Lookup lists for the upload / edit forms
+    public List<Sport> getAllSports() { return videoDAO.getAllSports(); }
+    public List<Category> getAllCategories() { return videoDAO.getAllCategories(); }
+    public List<Team> getAllTeams() { return videoDAO.getAllTeams(); }
+
+    // ===================================================================================
     // IT25102093'S METHODS (Content Management CRUD)
     // ===================================================================================
 
-    // IT25102093 - Content Management CRUD (Create + Validation + Observer Trigger)
-    public boolean addVideo(Video video, String videoType, List<Integer> teamIds, int uploadedBy) {
-        // 1. Strict Defensive Validation (12 Marks Criteria)
-        if (video == null || video.getTitle() == null || video.getTitle().trim().isEmpty()) {
-            throw new IllegalArgumentException("Video title cannot be empty.");
+    /**
+     * IT25102093 - Content Management CRUD (Create + Validation + Observer Trigger).
+     * Videos from normal users wait for admin approval (PENDING). Content managers and admins
+     * are trusted, so their uploads are APPROVED immediately and followers are notified.
+     *
+     * @return the new video id
+     */
+    public int addVideo(Video video, String uploaderRole) {
+        validate(video);
+        boolean trusted = isTrusted(uploaderRole);
+        int newId = videoDAO.addVideo(video, video.getUploadedBy(), trusted ? "APPROVED" : "PENDING");
+        if (newId <= 0) {
+            throw new IllegalStateException("Database error occurred while saving the video.");
         }
-        if (video.getTitle().length() > 150) {
-            throw new IllegalArgumentException("Video title must not exceed 150 characters.");
+        if (trusted) {
+            // Trigger Observer Pattern on a published video
+            notificationService.notifyFollowersOfNewVideo(videoDAO.getVideoByIdAnyStatus(newId));
         }
-
-        String ytUrl = video.getYouTubeURL();
-        if (ytUrl == null || ytUrl.trim().isEmpty()) {
-            throw new IllegalArgumentException("YouTube URL cannot be empty.");
-        }
-
-        if (video.getSportId() <= 0 || uploadedBy <= 0) {
-            throw new IllegalArgumentException("Invalid Sport ID or User ID.");
-        }
-
-        String normalizedType = (videoType != null && !videoType.trim().isEmpty())
-                ? videoType.trim().toUpperCase() : "HIGHLIGHT";
-
-        // 2. Execute DAO Insertion
-        boolean isSaved = videoDAO.addVideo(video, normalizedType, teamIds, uploadedBy);
-
-        // 3. Trigger Observer Pattern on Success
-        if (isSaved) {
-            notifyObservers("New " + normalizedType + " uploaded: " + video.getTitle());
-        }
-
-        return isSaved;
+        return newId;
     }
 
     // it25102093 -CRUD (Read)
@@ -144,18 +124,117 @@ public class VideoService implements Subject {
         return videoDAO.getVideoByIdAndUser(videoId, userId);
     }
 
-    // it25102093 -  CRUD (Update)
-    public boolean updateVideo(Video video, String videoType, int userId) {
-        if (video == null || video.getTitle() == null || video.getTitle().trim().isEmpty()) {
-            throw new IllegalArgumentException("Video title cannot be empty.");
+    /**
+     * it25102093 -  CRUD (Update).
+     * A REJECTED video goes back to PENDING when it is edited (re-submission). When a normal user
+     * changes the YouTube link of an approved video it must be re-approved as well.
+     *
+     * @return the submission status after the update
+     */
+    public String updateVideo(Video video, int userId, String role) {
+        validate(video);
+        Video existing = videoDAO.getVideoByIdAndUser(video.getVideoId(), userId);
+        if (existing == null) {
+            throw new IllegalArgumentException("Video not found or access denied.");
         }
-        if (userId <= 0) return false;
-        return videoDAO.updateVideo(video, videoType, userId);
+        String newStatus = existing.getStatus();
+        boolean linkChanged = !Video.extractVideoId(video.getSourceUrl()).equals(existing.getYoutubeVideoId());
+        if ("REJECTED".equals(newStatus) || (!isTrusted(role) && linkChanged)) {
+            newStatus = isTrusted(role) ? "APPROVED" : "PENDING";
+        }
+        if (!videoDAO.updateVideo(video, userId, newStatus)) {
+            throw new IllegalStateException("Error updating video in the database.");
+        }
+        if ("APPROVED".equals(newStatus) && !"APPROVED".equals(existing.getStatus())) {
+            // the video just became public -> Observer pattern alerts the followers
+            notificationService.notifyFollowersOfNewVideo(videoDAO.getVideoByIdAnyStatus(video.getVideoId()));
+        }
+        return newStatus;
     }
 
     // it25102093 -  CRUD (Delete)
     public boolean deleteVideo(int videoId, int userId) {
         if (videoId <= 0 || userId <= 0) return false;
         return videoDAO.deleteVideo(videoId, userId);
+    }
+
+    // ===================================================================================
+    // VALIDATION
+    // ===================================================================================
+
+    private boolean isTrusted(String role) {
+        return "CONTENT_MANAGER".equals(role) || "ADMIN".equals(role);
+    }
+
+    /** Strict Defensive Validation (12 Marks Criteria) — also normalises the values. */
+    private void validate(Video video) {
+        if (video == null || video.getTitle() == null || video.getTitle().trim().isEmpty()) {
+            throw new IllegalArgumentException("Video title cannot be empty.");
+        }
+        video.setTitle(video.getTitle().trim());
+        if (video.getTitle().length() > 200) {   // videos.title is VARCHAR(200)
+            throw new IllegalArgumentException("Video title must not exceed 200 characters.");
+        }
+
+        String ytUrl = video.getSourceUrl();
+        if (ytUrl == null || ytUrl.trim().isEmpty()) {
+            throw new IllegalArgumentException("YouTube URL cannot be empty.");
+        }
+        video.setSourceUrl(ytUrl.trim());
+        if (ytUrl.trim().length() > 500 || Video.extractVideoId(ytUrl).isEmpty()) {
+            throw new IllegalArgumentException("Please enter a valid YouTube link (watch, youtu.be, shorts or live).");
+        }
+
+        if (video.getDescription() != null) {
+            video.setDescription(video.getDescription().trim());
+            if (video.getDescription().length() > 2000) {
+                throw new IllegalArgumentException("Description must not exceed 2000 characters.");
+            }
+        }
+        if (video.getMatchScoreText() != null) {
+            String score = video.getMatchScoreText().trim();
+            video.setMatchScoreText(score.isEmpty() ? null : score);
+            if (score.length() > 100) {
+                throw new IllegalArgumentException("Match score must not exceed 100 characters.");
+            }
+        }
+
+        String type = video.getVideoType() == null ? "" : video.getVideoType().trim().toUpperCase();
+        if (!VIDEO_TYPES.contains(type)) {
+            throw new IllegalArgumentException("Video type must be Live, Highlight, Short or Interview.");
+        }
+        video.setVideoType(type);
+
+        boolean sportExists = videoDAO.getAllSports().stream().anyMatch(s -> s.getSportId() == video.getSportId());
+        if (!sportExists) {
+            throw new IllegalArgumentException("Please select a valid sport.");
+        }
+
+        boolean categoryExists = videoDAO.getAllCategories().stream().anyMatch(c -> c.getCategoryId() == video.getCategoryId());
+        if (!categoryExists) {
+            video.setCategoryId(defaultCategoryFor(type));
+        }
+
+        // Keep only real teams that belong to the selected sport (and no duplicates)
+        Set<Integer> wanted = new LinkedHashSet<>(video.getTeamIds());
+        List<Integer> valid = new ArrayList<>();
+        for (Team t : videoDAO.getAllTeams()) {
+            if (wanted.contains(t.getTeamId()) && t.getSportId() == video.getSportId()) valid.add(t.getTeamId());
+        }
+        video.setTeamIds(valid);
+
+        if (video.getUploadedBy() <= 0 && video.getVideoId() <= 0) {
+            throw new IllegalArgumentException("Invalid User ID.");
+        }
+    }
+
+    /** categories seed: 1 Live Matches, 2 Match Highlights, 3 Sports Shorts, 4 Interviews. */
+    private int defaultCategoryFor(String type) {
+        switch (type) {
+            case "LIVE": return 1;
+            case "SHORT": return 3;
+            case "INTERVIEW": return 4;
+            default: return 2;
+        }
     }
 }

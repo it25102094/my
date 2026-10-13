@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lk.sportix.model.Video;
+import lk.sportix.service.AdService;
 import lk.sportix.service.VideoService;
 
 import java.io.IOException;
@@ -16,9 +17,10 @@ import java.util.List;
 public class HomeController extends HttpServlet {
 
     private final VideoService videoService = new VideoService();
+    private final AdService adService = new AdService();
 
     @Override
-           protected void doGet(HttpServletRequest request, HttpServletResponse response)
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
         // Fetch data via the service layer
@@ -29,8 +31,6 @@ public class HomeController extends HttpServlet {
         List<Video> liveVideos = videoService.getVideosByCategory("LIVE", 4);
         List<Video> shortVideos = videoService.getVideosByCategory("SHORT", 6);
         List<Video> highlightVideos = videoService.getVideosByCategory("HIGHLIGHT", 4);
-
-        // NEW: Fetch Interview videos!
         List<Video> interviewVideos = videoService.getVideosByCategory("INTERVIEW", 4);
 
         // Bind data to the request scope for the JSP
@@ -39,12 +39,12 @@ public class HomeController extends HttpServlet {
         request.setAttribute("liveVideos", liveVideos);
         request.setAttribute("shortVideos", shortVideos);
         request.setAttribute("highlightVideos", highlightVideos);
-
-        // NEW: Send Interviews to the JSP
         request.setAttribute("interviewVideos", interviewVideos);
+
+        // Member 5: home-page banner ad (PriorityAdSelectionStrategy, impression counted)
+        request.setAttribute("bannerAds", adService.getAdsForPlacement(AdService.PLACEMENT_HOME_BANNER, 1));
 
         // Forward to the view
         request.getRequestDispatcher("/WEB-INF/views/home.jsp").forward(request, response);
     }
-        }
-
+}

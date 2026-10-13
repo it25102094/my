@@ -5,13 +5,15 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import lk.sportix.service.EngagementService;
+import lk.sportix.util.WebUtil;
 
 import java.io.IOException;
 
 /**
- * CommentServlet — Handles adding and deleting comments.
+ * CommentServlet — Handles adding, editing and deleting comments (Member 4).
+ * FIX: added the missing UPDATE (edit) action and safe number parsing (a bad videoId used to
+ * throw NumberFormatException -> HTTP 500).
  */
 @WebServlet("/comment")
 public class CommentServlet extends HttpServlet {
@@ -23,44 +25,41 @@ public class CommentServlet extends HttpServlet {
             throws ServletException, IOException {
 
         // 1. Security check: User must be logged in
-        HttpSession session = request.getSession(false);
-        if (session == null || !(session.getAttribute("userId") instanceof Integer)) {
+        int userId = WebUtil.currentUserId(request);
+        if (userId <= 0) {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
 
-        int userId = (Integer) session.getAttribute("userId");
         String action = request.getParameter("action");
-        String videoIdStr = request.getParameter("videoId");
-
-        if (videoIdStr == null || videoIdStr.trim().isEmpty()) {
+        int videoId = WebUtil.parseInt(request.getParameter("videoId"), 0);
+        if (videoId <= 0) {
             response.sendRedirect(request.getContextPath() + "/");
             return;
         }
-
-        int videoId = Integer.parseInt(videoIdStr);
+        int commentId = WebUtil.parseInt(request.getParameter("commentId"), 0);
 
         try {
             if ("add".equalsIgnoreCase(action)) {
-                String commentText = request.getParameter("commentText");
-                engagementService.addComment(videoId, userId, commentText);
+                engagementService.addComment(videoId, userId, request.getParameter("commentText"));
+                WebUtil.flash(request, "Comment posted.");
+
+            } else if ("update".equalsIgnoreCase(action)) {
+                boolean success = engagementService.updateComment(commentId, userId, request.getParameter("commentText"));
+                WebUtil.flash(request, success ? "Comment updated." : "Action denied: Unauthorized or comment not found.");
 
             } else if ("delete".equalsIgnoreCase(action)) {
-                int commentId = Integer.parseInt(request.getParameter("commentId"));
                 boolean success = engagementService.deleteComment(commentId, userId);
-
-                if (!success) {
-                    session.setAttribute("flashMessage", "Action denied: Unauthorized or comment not found.");
-                }
+                WebUtil.flash(request, success ? "Comment deleted." : "Action denied: Unauthorized or comment not found.");
             }
         } catch (IllegalArgumentException e) {
             // Catch validation errors (e.g., empty comment, too long)
-            session.setAttribute("flashMessage", e.getMessage());
+            WebUtil.flash(request, e.getMessage());
         } catch (Exception e) {
-            session.setAttribute("flashMessage", "An unexpected error occurred.");
+            WebUtil.flash(request, "An unexpected error occurred.");
         }
 
         // Redirect back to the video details page to see the updated comments
-        response.sendRedirect(request.getContextPath() + "/video?id=" + videoId);
+        response.sendRedirect(request.getContextPath() + "/video?id=" + videoId + "#comments");
     }
 }

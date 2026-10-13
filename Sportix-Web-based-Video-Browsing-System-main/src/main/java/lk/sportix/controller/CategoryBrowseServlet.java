@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lk.sportix.model.Video;
+import lk.sportix.service.AdService;
 import lk.sportix.service.VideoService;
 import lk.sportix.strategy.MostViewedSortStrategy;
 import lk.sportix.strategy.NewestSortStrategy;
@@ -15,13 +16,14 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * CategoryBrowseServlet — Handles navigation tabs (/live, /highlights, /shorts, /trending, /categories)
+ * CategoryBrowseServlet — Handles navigation tabs (/live, /highlights, /shorts, /interviews, /trending, /categories)
  * and applies the Strategy Pattern for sorting.
  */
-@WebServlet(urlPatterns = {"/live", "/highlights", "/shorts", "/trending", "/categories"})
+@WebServlet(urlPatterns = {"/live", "/highlights", "/shorts", "/interviews", "/trending", "/categories"})
 public class CategoryBrowseServlet extends HttpServlet {
 
     private final VideoService videoService = new VideoService();
+    private final AdService adService = new AdService();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -44,6 +46,10 @@ public class CategoryBrowseServlet extends HttpServlet {
                 label = "Sports Shorts";
                 results = videoService.getVideosByCategory("SHORT", 20);
                 break;
+            case "/interviews":
+                label = "Exclusive Interviews";
+                results = videoService.getVideosByCategory("INTERVIEW", 20);
+                break;
             case "/trending":
                 label = "Top Trending";
                 results = videoService.getTrendingVideos(20);
@@ -61,10 +67,7 @@ public class CategoryBrowseServlet extends HttpServlet {
         }
 
         // Apply Strategy Pattern Sorting based on ?sort= parameter
-        String sortParam = request.getParameter("sort");
-        if (sortParam == null || sortParam.trim().isEmpty()) {
-            sortParam = "VIEWS";
-        }
+        String sortParam = "NEWEST".equalsIgnoreCase(request.getParameter("sort")) ? "NEWEST" : "VIEWS";
         SearchStrategy strategy = "NEWEST".equalsIgnoreCase(sortParam)
                 ? new NewestSortStrategy()
                 : new MostViewedSortStrategy();
@@ -73,6 +76,9 @@ public class CategoryBrowseServlet extends HttpServlet {
         request.setAttribute("keyword", label);
         request.setAttribute("currentSort", sortParam.toUpperCase());
         request.setAttribute("results", results);
+        request.setAttribute("browseMode", true);
+        request.setAttribute("sortAction", path);   // the sort drop-down must re-submit to the same tab
+        request.setAttribute("searchAds", adService.getAdsForPlacement(AdService.PLACEMENT_SEARCH, 1)); // Member 5
 
         request.getRequestDispatcher("/WEB-INF/views/search-results.jsp").forward(request, response);
     }

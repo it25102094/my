@@ -1,6 +1,7 @@
-<form method="post" action="${pageContext.request.contextPath}/user/add-video"><form method="post" action="${pageContext.request.contextPath}/user/add-video"><%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page contentType="text/html;charset=UTF-8" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
-<%-- it25102093 : Member 3 - Content Posting Management (Create Video) --%>
+<%-- it25102093 : Member 3 - Content Posting Management (Create Video)
+     FIX: the file started with two stray <form> tags BEFORE the page directive (broken, nested HTML forms). --%>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,7 +11,7 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
     <style>
         .form-container {
-            max-width: 600px;
+            max-width: 680px;
             margin: 40px auto;
             background-color: var(--color-surface);
             padding: 30px;
@@ -26,7 +27,6 @@
             color: var(--color-title);
         }
         textarea.form-control { resize: vertical; min-height: 100px; }
-        .form-error { color: #ef4444; background: #fee2e2; padding: 12px; border-radius: 6px; border: 1px solid #f87171; }
     </style>
 </head>
 <body>
@@ -35,58 +35,22 @@
 
 <section class="page-section">
     <div class="form-container">
-        <h2 style="margin-bottom: 20px; color: var(--color-accent);">Upload a Video</h2>
+        <h2 style="margin-bottom: 8px; color: var(--color-accent-readable);">Upload a Video</h2>
+        <p class="muted" style="margin-bottom: 20px;">
+            <c:choose>
+                <c:when test="${sessionScope.role == 'CONTENT_MANAGER' || sessionScope.role == 'ADMIN'}">As a ${sessionScope.role == 'ADMIN' ? 'admin' : 'content manager'} your video is published immediately.</c:when>
+                <c:otherwise>Your video will be visible after an admin approves it.</c:otherwise>
+            </c:choose>
+        </p>
 
         <c:if test="${not empty error}">
             <div class="form-error" style="margin-bottom: 20px;">
-                <strong>Error:</strong> ${error}
+                <strong>Error:</strong> <c:out value="${error}"/>
             </div>
         </c:if>
 
         <form method="post" action="${pageContext.request.contextPath}/user/add-video">
-
-            <div class="form-group">
-                <label>Video Title</label>
-                <input type="text" name="title" class="form-control" required maxlength="150"
-                       placeholder="e.g. Messi Best Goals 2024"
-                       value="<c:out value='${param.title}'/>">
-            </div>
-
-            <div class="form-group">
-                <label>YouTube Link (Watch, Shorts, or Live)</label>
-                <input type="url" name="youtubeUrl" class="form-control" required
-                       placeholder="e.g. https://www.youtube.com/watch?v=..."
-                       value="<c:out value='${param.youtubeUrl}'/>">
-            </div>
-
-            <div class="form-group">
-                <label>Description (Optional)</label>
-                <textarea name="description" class="form-control"
-                          placeholder="Add some context about this video..."><c:out value='${param.description}'/></textarea>
-            </div>
-
-            <div style="display: flex; gap: 15px;">
-                <div class="form-group" style="flex: 1;">
-                    <label>Sport</label>
-                    <select name="sportId" class="form-control" required>
-                        <option value="1" ${param.sportId == '1' ? 'selected' : ''}>Cricket</option>
-                        <option value="2" ${param.sportId == '2' ? 'selected' : ''}>Football</option>
-                        <option value="3" ${param.sportId == '3' ? 'selected' : ''}>Basketball</option>
-                        <option value="4" ${param.sportId == '4' ? 'selected' : ''}>Formula 1</option>
-                        <option value="5" ${param.sportId == '5' ? 'selected' : ''}>Tennis</option>
-                        <option value="6" ${param.sportId == '6' ? 'selected' : ''}>Athletics</option>
-                    </select>
-                </div>
-
-                <div class="form-group" style="flex: 1;">
-                    <label>Video Type</label>
-                    <select name="videoType" class="form-control" required>
-                        <option value="HIGHLIGHT" ${param.videoType == 'HIGHLIGHT' ? 'selected' : ''}>Highlights</option>
-                        <option value="LIVE" ${param.videoType == 'LIVE' ? 'selected' : ''}>Live Match</option>
-                        <option value="SHORT" ${param.videoType == 'SHORT' ? 'selected' : ''}>Shorts</option>
-                    </select>
-                </div>
-            </div>
+            <%@ include file="includes/video-form-fields.jsp" %>
 
             <button type="submit" class="btn-accent" style="width: 100%; margin-top: 15px; padding: 12px; font-size: 1.1rem; cursor: pointer;">
                 Publish Video
@@ -95,6 +59,4 @@
     </div>
 </section>
 
-<script src="${pageContext.request.contextPath}/js/theme.js"></script>
-</body>
-</html>
+<%@ include file="includes/footer.jsp" %>

@@ -5,11 +5,19 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import lk.sportix.service.FollowTeamService;
+import lk.sportix.util.WebUtil;
 
 import java.io.IOException;
 
+/**
+ * FollowTeamServlet — Member 1: follow_teams CRUD.
+ *   action=follow (default) | unfollow | notifyOn | notifyOff
+ * Followers with "notify on upload" switched on are the Observers of Member 5's notification
+ * system (they get an alert when the team posts a new video).
+ * FIX: the redirect checked request.getRequestURI().contains("profile") — the URI is always
+ * /user/follow, so users were always sent to /home. A "from" parameter is used now.
+ */
 @WebServlet("/user/follow")
 public class FollowTeamServlet extends HttpServlet {
 
@@ -17,40 +25,42 @@ public class FollowTeamServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        HttpSession session = request.getSession(false);
-        if (session == null || !(session.getAttribute("userId") instanceof Integer)) {
+        int userId = WebUtil.currentUserId(request);
+        if (userId <= 0) {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
 
-        int userId = (Integer) session.getAttribute("userId");
-        int teamId = 0;
-        int videoId = 0;
+        int teamId = WebUtil.parseInt(request.getParameter("teamId"), 0);
+        int videoId = WebUtil.parseInt(request.getParameter("videoId"), 0);
         String action = request.getParameter("action");
         String teamName = request.getParameter("teamName");
-
-        try { teamId = Integer.parseInt(request.getParameter("teamId")); } catch (Exception ignored) {}
-        try { videoId = Integer.parseInt(request.getParameter("videoId")); } catch (Exception ignored) {}
+        String label = (teamName != null && !teamName.isBlank()) ? teamName.trim() : "the team";
 
         if (teamId > 0) {
-            // MVC Fixed: Delegating insert/delete to FollowTeamService
+            // MVC: Delegating insert/update/delete to FollowTeamService
             if ("unfollow".equals(action)) {
                 followTeamService.unfollowTeam(userId, teamId);
-                session.setAttribute("flashMessage", "You have unfollowed " + (teamName != null ? teamName : "the team") + ".");
+                WebUtil.flash(request, "You have unfollowed " + label + ".");
+            } else if ("notifyOn".equals(action) || "notifyOff".equals(action)) {
+                boolean on = "notifyOn".equals(action);
+                followTeamService.updateNotificationPreference(userId, teamId, on);
+                WebUtil.flash(request, on ? "Upload alerts switched ON for " + label + "."
+                        : "Upload alerts switched OFF for " + label + ".");
             } else {
                 followTeamService.followTeam(userId, teamId, true);
-                session.setAttribute("flashMessage", "Success! You are now following " + (teamName != null ? teamName : "the team") + ".");
+                WebUtil.flash(request, "Success! You are now following " + label
+                        + ". You will get a notification when they post a new video.");
             }
         }
 
         // SMART REDIRECT
         if (videoId > 0) {
             response.sendRedirect(request.getContextPath() + "/video?id=" + videoId);
+        } else if ("profile".equals(request.getParameter("from"))) {
+            response.sendRedirect(request.getContextPath() + "/profile#teams");
         } else {
-            // FIX: Use getRequestURI() instead of requestURI()
-            response.sendRedirect(request.getRequestURI().contains("profile")
-                    ? request.getContextPath() + "/profile"
-                    : request.getContextPath() + "/home");
+            response.sendRedirect(request.getContextPath() + "/home");
         }
     }
 }

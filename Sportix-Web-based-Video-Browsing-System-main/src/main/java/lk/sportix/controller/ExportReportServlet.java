@@ -5,8 +5,8 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import lk.sportix.service.AdminService;
+import lk.sportix.util.WebUtil;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -19,13 +19,16 @@ public class ExportReportServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("userId") == null) {
+        if (WebUtil.currentUserId(request) <= 0) {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
+        if (!WebUtil.isAdmin(request)) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Administrator access only.");
+            return;
+        }
 
-        int adminId = (Integer) session.getAttribute("userId");
+        int adminId = WebUtil.currentUserId(request);
         String csvContent = adminService.generateVideoAnalyticsCsv(adminId);
 
         String fileName = "sportix_video_analytics_" + LocalDate.now() + ".csv";
@@ -35,6 +38,7 @@ public class ExportReportServlet extends HttpServlet {
         response.setHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
 
         try (PrintWriter writer = response.getWriter()) {
+            writer.write('\uFEFF'); // UTF-8 BOM so Excel shows Sinhala/Tamil text correctly
             writer.write(csvContent);
             writer.flush();
         }

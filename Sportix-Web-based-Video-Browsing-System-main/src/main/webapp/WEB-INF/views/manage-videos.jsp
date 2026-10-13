@@ -60,12 +60,7 @@
         <a href="${pageContext.request.contextPath}/user/add-video" class="btn-accent">+ Upload New</a>
     </div>
 
-    <c:if test="${not empty sessionScope.flashMessage}">
-        <div style="margin-top: 15px; padding: 12px; border-radius: 6px; background-color: var(--color-surface-alt); border: 1px solid var(--color-border);">
-            <c:out value="${sessionScope.flashMessage}"/>
-        </div>
-        <% session.removeAttribute("flashMessage"); %>
-    </c:if>
+    <div style="margin-top: 15px;"><%@ include file="includes/flash.jsp" %></div>
 
     <div class="dashboard-grid">
         <c:forEach var="v" items="${myVideos}">
@@ -89,10 +84,14 @@
                     </span>
                 </div>
 
-                <h3 style="font-size: 1.1rem; margin-bottom: 5px;"><c:out value="${v.title}"/></h3>
+                <h3 style="font-size: 1.1rem; margin-bottom: 5px;">
+                    <a href="${pageContext.request.contextPath}/video?id=${v.videoId}"><c:out value="${v.title}"/></a>
+                </h3>
                 <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 5px;">
-                    Sport: <c:out value="${v.sportName}"/>
+                    Sport: <c:out value="${v.sportName}"/> &bull; Type: <c:out value="${v.videoType}"/> &bull; <c:out value="${v.categoryName}"/>
                 </p>
+                <c:if test="${v.status == 'PENDING'}"><p class="muted">Waiting for admin approval &mdash; only you can preview it.</p></c:if>
+                <c:if test="${v.status == 'REJECTED'}"><p class="muted">Rejected by a moderator &mdash; edit it to re-submit.</p></c:if>
                 <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 10px;">
                     Views: ${v.viewCount}
                 </p>
@@ -120,6 +119,4 @@
     </div>
 </section>
 
-<script src="${pageContext.request.contextPath}/js/theme.js"></script>
-</body>
-</html>
+<%@ include file="includes/footer.jsp" %>

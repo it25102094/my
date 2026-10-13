@@ -6,6 +6,7 @@ import jakarta.servlet.http.*;
 import lk.sportix.model.User;
 import lk.sportix.service.FollowTeamService;
 import lk.sportix.service.UserService;
+import lk.sportix.util.WebUtil;
 
 import java.io.IOException;
 
@@ -24,19 +25,24 @@ public class ProfileServlet extends HttpServlet {
             return;
         }
 
-        HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("userId") == null) {
+        int userId = WebUtil.currentUserId(request);
+        if (userId <= 0) {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
 
-        int userId = (Integer) session.getAttribute("userId");
         User user = userService.getUserById(userId);
-        session.setAttribute("loggedUser", user);
+        if (user == null) {               // account was deleted by an admin
+            request.getSession().invalidate();
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
+        request.getSession().setAttribute("loggedUser", user);
         request.setAttribute("user", user);
 
-        // Fetch followed teams via Service
+        // Fetch followed teams + all teams (with follow status) via Service
         request.setAttribute("followedTeams", followTeamService.getFollowedTeams(userId));
+        request.setAttribute("allTeams", followTeamService.getAllTeamsWithStatus(userId));
 
         if ("/user/edit-profile".equals(path)) {
             request.getRequestDispatcher("/WEB-INF/views/edit-profile.jsp").forward(request, response);
@@ -55,7 +61,7 @@ public class ProfileServlet extends HttpServlet {
             String phone = request.getParameter("contactNumber");
             String newPass = request.getParameter("newPassword");
 
-            // MVC Fixed: Controller calls Service (which handles BCrypt and DAO)
+            // MVC: Controller calls Service (which handles BCrypt and DAO)
             if (userService.resetPassword(email, phone, newPass)) {
                 response.sendRedirect(request.getContextPath() + "/login?resetSuccess=true");
                 return;
@@ -67,19 +73,12 @@ public class ProfileServlet extends HttpServlet {
 
         // Check login session for all other actions
         HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("userId") == null) {
+        int userId = WebUtil.currentUserId(request);
+        if (userId <= 0) {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
-        int userId = (Integer) session.getAttribute("userId");
-
-        if ("/toggle-spoiler".equals(path)) {
-            boolean hideScores = Boolean.parseBoolean(request.getParameter("spoilerFree"));
-            userService.updateHideScores(userId, hideScores);
-            session.setAttribute("spoilerFree", hideScores);
-            response.setStatus(HttpServletResponse.SC_OK);
-            return;
-        }
+        // (FIX: the dead "/toggle-spoiler" branch was removed — ToggleSpoilerServlet handles that URL.)
 
         String action = request.getParameter("action");
 
@@ -90,6 +89,10 @@ public class ProfileServlet extends HttpServlet {
             user.setContactNumber(request.getParameter("contactNumber"));
             user.setFavouriteSports(request.getParameter("favouriteSports"));
             user.setHideScores(request.getParameter("hideScores") != null);
+            if ("ADVERTISER".equals(user.getRole())) {
+                String company = request.getParameter("companyName");
+                user.setCompanyName(company != null && !company.isBlank() ? company.trim() : user.getCompanyName());
+            }
 
             if (userService.updateProfile(user)) {
                 session.setAttribute("loggedUser", user);
@@ -97,7 +100,7 @@ public class ProfileServlet extends HttpServlet {
                 session.setAttribute("spoilerFree", user.isHideScores());
                 response.sendRedirect(request.getContextPath() + "/profile?updated=true");
             } else {
-                request.setAttribute("error", "Could not update profile. First name is required.");
+                request.setAttribute("error", "Could not update profile. First name is required and the contact number must have 9-15 digits.");
                 request.setAttribute("user", user);
                 request.getRequestDispatcher("/WEB-INF/views/edit-profile.jsp").forward(request, response);
             }
@@ -121,6 +124,8 @@ public class ProfileServlet extends HttpServlet {
             } else {
                 response.sendRedirect(request.getContextPath() + "/profile?error=deleteFailed");
             }
+        } else {
+            response.sendRedirect(request.getContextPath() + "/profile");
         }
     }
 }

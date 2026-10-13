@@ -5,8 +5,8 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import lk.sportix.service.EngagementService;
+import lk.sportix.util.WebUtil;
 
 import java.io.IOException;
 
@@ -19,28 +19,31 @@ public class ReportServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        HttpSession session = request.getSession(false);
-        if (session == null || !(session.getAttribute("userId") instanceof Integer)) {
+        int userId = WebUtil.currentUserId(request);
+        if (userId <= 0) {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
 
-        int userId = (Integer) session.getAttribute("userId");
-        String videoIdStr = request.getParameter("videoId");
+        int videoId = WebUtil.parseInt(request.getParameter("videoId"), 0);
         String reason = request.getParameter("reason");
 
-        if (videoIdStr != null && !videoIdStr.trim().isEmpty() && reason != null) {
-            try {
-                int videoId = Integer.parseInt(videoIdStr);
-                engagementService.reportVideo(videoId, userId, reason);
-                session.setAttribute("flashMessage", "Thank you. This video has been reported to the admins for review.");
-            } catch (NumberFormatException e) {
-                session.setAttribute("flashMessage", "Invalid request format.");
-            } catch (IllegalArgumentException e) {
-                session.setAttribute("flashMessage", e.getMessage());
-            }
+        if (videoId <= 0) {
+            WebUtil.flash(request, "Invalid request format.");
+            response.sendRedirect(request.getContextPath() + "/home");
+            return;
         }
 
-        response.sendRedirect(request.getContextPath() + "/video?id=" + videoIdStr);
+        try {
+            if (engagementService.reportVideo(videoId, userId, reason)) {
+                WebUtil.flash(request, "Thank you. This video has been reported to the admins for review.");
+            } else {
+                WebUtil.flash(request, "The report could not be saved. Please try again.");
+            }
+        } catch (IllegalArgumentException e) {
+            WebUtil.flash(request, e.getMessage());
+        }
+
+        response.sendRedirect(request.getContextPath() + "/video?id=" + videoId);
     }
 }

@@ -24,8 +24,11 @@
 
         <input type="text" name="firstName" value="<c:out value='${user.firstName}'/>" placeholder="First Name" required>
         <input type="text" name="lastName" value="<c:out value='${user.lastName}'/>" placeholder="Last Name" required>
-        <input type="text" name="contactNumber" value="<c:out value='${user.contactNumber}'/>" placeholder="Contact Number">
+        <input type="text" name="contactNumber" value="<c:out value='${user.contactNumber}'/>" placeholder="Contact Number (used for password reset)" pattern="[0-9+ ]{9,15}" title="9-15 digits">
         <input type="text" name="favouriteSports" value="<c:out value='${user.favouriteSports}'/>" placeholder="Favourite Sports (e.g. Cricket, Football)">
+        <c:if test="${user.role == 'ADVERTISER'}">
+            <input type="text" name="companyName" value="<c:out value='${user.companyName}'/>" placeholder="Company / brand name" maxlength="120">
+        </c:if>
 
         <label style="display:flex; align-items:center; gap:8px; font-size:0.9rem;">
             <input type="checkbox" name="hideScores" value="true" ${user.hideScores ? 'checked' : ''} style="width:auto;">
@@ -60,6 +63,4 @@
 
 </section>
 
-<script src="${pageContext.request.contextPath}/js/theme.js"></script>
-</body>
-</html>
+<%@ include file="includes/footer.jsp" %>

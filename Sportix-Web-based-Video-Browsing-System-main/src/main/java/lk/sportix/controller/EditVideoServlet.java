@@ -5,9 +5,9 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import lk.sportix.model.Video;
 import lk.sportix.service.VideoService;
+import lk.sportix.util.WebUtil;
 
 import java.io.IOException;
 
@@ -19,80 +19,73 @@ public class EditVideoServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("userId") == null) {
+        int userId = WebUtil.currentUserId(request);
+        if (userId <= 0) {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
 
-        int userId = (Integer) session.getAttribute("userId");
-        int videoId = 0;
+        // If the ID is tampered with in the URL, it defaults to 0
+        int videoId = WebUtil.parseInt(request.getParameter("id"), 0);
 
-        try {
-            videoId = Integer.parseInt(request.getParameter("id"));
-        } catch (NumberFormatException ignored) {
-            // If the ID is tampered with in the URL, it defaults to 0
-        }
-
-        // MVC Fixed: Replace raw SQL SELECT with Service call.
-        // Enforces ownership: only returns the video if it belongs to this userId.
+        // Enforces ownership: only returns the video if it belongs to this userId (any status).
         Video video = videoService.getVideoByIdAndUser(videoId, userId);
 
         if (video != null) {
-            request.setAttribute("videoId", video.getVideoId());
-            request.setAttribute("title", video.getTitle());
-            request.setAttribute("description", video.getDescription());
-            request.setAttribute("youtubeUrl", video.getYouTubeURL());
-            request.setAttribute("videoType", video.isLive() ? "LIVE" : "HIGHLIGHT");
-            request.setAttribute("sportId", video.getSportId());
-
-            request.getRequestDispatcher("/WEB-INF/views/edit-video.jsp").forward(request, response);
+            showForm(request, response, video);
         } else {
             // If video doesn't exist or doesn't belong to the user, redirect away
-            session.setAttribute("flashMessage", "Error: Video not found or access denied.");
+            WebUtil.flash(request, "Error: Video not found or access denied.");
             response.sendRedirect(request.getContextPath() + "/user/my-videos");
         }
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("userId") == null) {
+        int userId = WebUtil.currentUserId(request);
+        if (userId <= 0) {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
 
-        int userId = (Integer) session.getAttribute("userId");
-        Video video = new Video();
-
         // 1. Defensive Parsing: Prevent 500 Server Errors from tampered form data
-        try {
-            video.setVideoId(Integer.parseInt(request.getParameter("videoId")));
-            video.setSportId(Integer.parseInt(request.getParameter("sportId")));
-        } catch (NumberFormatException e) {
-            session.setAttribute("flashMessage", "Error: Invalid data submitted.");
+        int videoId = WebUtil.parseInt(request.getParameter("videoId"), 0);
+        if (videoId <= 0) {
+            WebUtil.flash(request, "Error: Invalid data submitted.");
             response.sendRedirect(request.getContextPath() + "/user/my-videos");
             return;
         }
 
-        // Map remaining form parameters to Model
-        video.setTitle(request.getParameter("title"));
-        video.setYouTubeURL(request.getParameter("youtubeUrl"));
-        video.setDescription(request.getParameter("description"));
-        String videoType = request.getParameter("videoType");
+        // Map form parameters to Model (FIX: SHORT / INTERVIEW types and the category were lost)
+        Video video = AddVideoServlet.readVideoForm(request);
+        video.setVideoId(videoId);
 
-        // 2. MVC Fixed: Replace raw SQL UPDATE with Service call & Error Handling
+        // 2. MVC: Service call & Error Handling
         try {
-            if (videoService.updateVideo(video, videoType, userId)) {
-                session.setAttribute("flashMessage", "Success! Video updated successfully.");
-            } else {
-                session.setAttribute("flashMessage", "Error updating video in the database.");
+            String status = videoService.updateVideo(video, userId, WebUtil.currentRole(request));
+            WebUtil.flash(request, "PENDING".equals(status)
+                    ? "Success! Video updated and sent to the admin for (re-)approval."
+                    : "Success! Video updated successfully.");
+            response.sendRedirect(request.getContextPath() + "/user/my-videos");
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            // Show the form again with the user's input and the validation message
+            request.setAttribute("error", e.getMessage());
+            Video existing = videoService.getVideoByIdAndUser(videoId, userId);
+            if (existing == null) {
+                WebUtil.flash(request, "Error: Video not found or access denied.");
+                response.sendRedirect(request.getContextPath() + "/user/my-videos");
+                return;
             }
-        } catch (IllegalArgumentException e) {
-            // Catches strict backend validation rules (e.g. empty titles)
-            session.setAttribute("flashMessage", "Validation Error: " + e.getMessage());
+            video.setStatus(existing.getStatus());
+            showForm(request, response, video);
         }
+    }
 
-        response.sendRedirect(request.getContextPath() + "/user/my-videos");
+    private void showForm(HttpServletRequest request, HttpServletResponse response, Video video) throws ServletException, IOException {
+        request.setAttribute("video", video);
+        request.setAttribute("sports", videoService.getAllSports());
+        request.setAttribute("categories", videoService.getAllCategories());
+        request.setAttribute("teams", videoService.getAllTeams());
+        request.getRequestDispatcher("/WEB-INF/views/edit-video.jsp").forward(request, response);
     }
 }

@@ -14,8 +14,8 @@ public class UserDAO {
     // CREATE: Register a new user
     public boolean createUser(User user) {
         String sql = "INSERT INTO users (username, first_name, last_name, email, contact_number, " +
-                "password_hash, role, status, favourite_sports, spoiler_free) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)";
+                "password_hash, role, status, favourite_sports, spoiler_free, company_name) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?)";
 
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -29,6 +29,7 @@ public class UserDAO {
             ps.setString(7, user.getRole() != null ? user.getRole() : "USER");
             ps.setString(8, user.getFavouriteSports());
             ps.setBoolean(9, user.isHideScores());
+            ps.setString(10, user.getCompanyName());
 
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -106,7 +107,7 @@ public class UserDAO {
     // UPDATE: Update profile details
     public boolean updateProfile(User user) {
         String sql = "UPDATE users SET first_name = ?, last_name = ?, contact_number = ?, " +
-                "favourite_sports = ?, spoiler_free = ? WHERE user_id = ?";
+                "favourite_sports = ?, spoiler_free = ?, company_name = ? WHERE user_id = ?";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
@@ -115,7 +116,8 @@ public class UserDAO {
             ps.setString(3, user.getContactNumber());
             ps.setString(4, user.getFavouriteSports());
             ps.setBoolean(5, user.isHideScores());
-            ps.setInt(6, user.getUserId());
+            ps.setString(6, user.getCompanyName());
+            ps.setInt(7, user.getUserId());
 
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -202,6 +204,8 @@ public class UserDAO {
         user.setStatus(rs.getString("status"));
         user.setFavouriteSports(rs.getString("favourite_sports"));
         user.setHideScores(rs.getBoolean("spoiler_free"));
+        user.setCompanyName(rs.getString("company_name"));
+        user.setCreatedAt(rs.getTimestamp("created_at"));
         return user;
     }
 }
