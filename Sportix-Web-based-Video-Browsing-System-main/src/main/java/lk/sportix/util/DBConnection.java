@@ -9,21 +9,33 @@ import java.util.Properties;
 
 /**
  * Singleton Database Connection Manager for Sportix (lk.sportix.util).
- * Automatically loads database credentials from src/main/resources/db.properties.
+ * DESIGN PATTERN: Singleton — exactly one DBConnection object exists for the whole web app.
+ *
+ * Automatically loads database credentials from src/main/resources/db.properties:
+ *   db.driver   (optional, defaults to the MySQL Connector/J driver)
+ *   db.url
+ *   db.username
+ *   db.password
  */
 public class DBConnection {
 
+    private static final String DEFAULT_DRIVER = "com.mysql.cj.jdbc.Driver";
+    private static final String DEFAULT_URL =
+            "jdbc:mysql://localhost:3306/sportix_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&characterEncoding=UTF-8";
+
     private static DBConnection instance;
-    private String url;
-    private String username;
-    private String password;
+    private String driver = DEFAULT_DRIVER;
+    private String url = DEFAULT_URL;
+    private String username = "root";
+    private String password = "root";
 
     private DBConnection() {
         loadProperties();
         try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
+            Class.forName(driver);
         } catch (ClassNotFoundException e) {
-            throw new IllegalStateException("MySQL JDBC Driver not found in classpath!", e);
+            throw new IllegalStateException("JDBC Driver '" + driver + "' not found in classpath! "
+                    + "Check that mysql-connector-j is listed in pom.xml.", e);
         }
     }
 
@@ -32,17 +44,14 @@ public class DBConnection {
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("db.properties")) {
             if (input != null) {
                 props.load(input);
-                this.url = props.getProperty("db.url");
-                this.username = props.getProperty("db.username");
-                this.password = props.getProperty("db.password");
-            } else {
-                // Fallback defaults if db.properties is missing
-                this.url = "jdbc:mysql://localhost:3306/sportix_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
-                this.username = "root";
-                this.password = "root";
+                this.driver = props.getProperty("db.driver", DEFAULT_DRIVER).trim();
+                this.url = props.getProperty("db.url", DEFAULT_URL).trim();
+                this.username = props.getProperty("db.username", "root").trim();
+                this.password = props.getProperty("db.password", "");
             }
+            // else: fall back to the defaults above (local MySQL, root/root)
         } catch (IOException e) {
-            System.err.println("Failed to read db.properties: " + e.getMessage());
+            System.err.println("Failed to read db.properties, using defaults: " + e.getMessage());
         }
     }
 
@@ -58,6 +67,12 @@ public class DBConnection {
      * without accidentally closing a shared connection across multiple concurrent users.
      */
     public Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(this.url, this.username, this.password);
+        try {
+            return DriverManager.getConnection(this.url, this.username, this.password);
+        } catch (SQLException e) {
+            System.err.println("DBConnection: cannot connect to " + url + " as '" + username
+                    + "'. Is MySQL running and was database/sportix_schema.sql executed? -> " + e.getMessage());
+            throw e;
+        }
     }
 }

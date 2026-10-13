@@ -11,8 +11,13 @@ import java.io.IOException;
 /**
  * AuthFilter - Servlet Filter enforcing Role-Based Access Control (RBAC).
  * Intercepts requests to protected areas BEFORE they reach any Servlet.
+ *
+ * FIX (security): the mapping "/admin/*" also matches "/admin", but the role check only tested
+ * path.startsWith("/admin/"), so "/admin" (the Admin Dashboard) was treated as PUBLIC.
+ * Exact paths are now matched too, and the notifications inbox requires a login.
  */
-@WebFilter(urlPatterns = {"/admin/*", "/manager/*", "/content/*", "/advertiser/*", "/campaigns/*", "/user/*", "/profile"})
+@WebFilter(urlPatterns = {"/admin", "/admin/*", "/manager/*", "/content/*", "/advertiser/*", "/campaigns/*",
+        "/campaign", "/user/*", "/profile", "/notifications"})
 public class AuthFilter implements Filter {
 
     @Override
@@ -35,16 +40,16 @@ public class AuthFilter implements Filter {
 
         boolean authorized;
 
-        if (path.startsWith("/admin/")) {
+        if (matches(path, "/admin")) {
             authorized = "ADMIN".equals(role);
 
-        } else if (path.startsWith("/manager/") || path.startsWith("/content/")) {
+        } else if (matches(path, "/manager") || matches(path, "/content")) {
             authorized = "CONTENT_MANAGER".equals(role) || "ADMIN".equals(role);
 
-        } else if (path.startsWith("/advertiser/") || path.startsWith("/campaigns")) {
+        } else if (matches(path, "/advertiser") || matches(path, "/campaigns") || matches(path, "/campaign")) {
             authorized = "ADVERTISER".equals(role) || "ADMIN".equals(role);
 
-        } else if (path.startsWith("/user/") || path.startsWith("/profile")) {
+        } else if (matches(path, "/user") || matches(path, "/profile") || matches(path, "/notifications")) {
             authorized = role != null;
 
         } else {
@@ -59,6 +64,11 @@ public class AuthFilter implements Filter {
             httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN,
                     "You do not have permission to access this resource.");
         }
+    }
+
+    /** True for the exact path ("/admin") and everything below it ("/admin/..."). */
+    private static boolean matches(String path, String base) {
+        return path.equals(base) || path.startsWith(base + "/");
     }
 
     @Override
