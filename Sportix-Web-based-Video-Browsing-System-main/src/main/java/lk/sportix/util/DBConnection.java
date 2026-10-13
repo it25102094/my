@@ -21,7 +21,7 @@ public class DBConnection {
 
     private static final String DEFAULT_DRIVER = "com.mysql.cj.jdbc.Driver";
     private static final String DEFAULT_URL =
-            "jdbc:mysql://localhost:3306/sportix_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&characterEncoding=UTF-8";
+            "jdbc:mysql://localhost:3306/sportix_db?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&connectionTimeZone=LOCAL";
 
     private static DBConnection instance;
     private String driver = DEFAULT_DRIVER;

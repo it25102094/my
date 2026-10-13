@@ -119,5 +119,6 @@ role and create / read / update / delete in every module) plus an HTML check of 
 | Numbers/dates unformatted for browsers with `si-LK` locale | fixed JSTL formatting locale |
 | `maven-war-plugin` not pinned (old Maven defaults crash on JDK 17+) | plugin versions pinned |
 | DB driver hard-coded, unclear error when MySQL is down | `db.driver` property + clear error message |
+| `serverTimezone=UTC` in the JDBC URL shifted every displayed time (comments, notifications) by +5:30 on a Sri Lankan PC | `connectionTimeZone=LOCAL` (Connector/J 8.4 default semantics: same zone as the JVM) |
 | Mobile menu button had no handler | responsive navbar |
 | Mixed CRLF/LF line endings | normalised to LF |
