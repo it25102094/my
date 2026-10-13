@@ -1,0 +1,528 @@
+/* ==========================================================================
+   SPORTIX — THEME PALETTE & DESIGN SYSTEM
+   Implements Dark Mode (Default) & Light Mode Canvas/Typography Swap
+   ========================================================================== */
+
+:root,
+[data-theme="dark"] {
+    /* 1. The Canvas Swap (Dark Mode) */
+    --color-bg: #0B0F19;              /* Deep Navy/Black Canvas */
+    --color-surface: #161D30;         /* Slightly lighter dark-grey cards */
+    --color-surface-alt: #1E293B;     /* Input fields & secondary surfaces */
+    --color-navbar: #0B0F19;          /* Dark header bar */
+    --color-search-bg: #161D30;       /* Dark search input background */
+    --color-border: #263147;          /* Subtle dark card border */
+
+    /* 2. Typography Overhaul (Dark Mode Hierarchy) */
+    --color-heading: #FFFFFF;         /* Main Headings: Pure White */
+    --color-title: #E5E7EB;           /* Video Titles: Off-White */
+    --color-text: #E5E7EB;            /* Standard body text */
+    --color-text-muted: #9CA3AF;      /* Metadata: Medium Grey */
+    --color-nav-link: #E5E7EB;        /* Navbar links */
+
+    /* 3. Accent & Status Colors */
+    --color-accent: #CCFF00;          /* Neon Lime/Yellow */
+    --color-accent-text: #111827;     /* Sharp Dark Charcoal on Neon Pills */
+    --color-accent-readable: #CCFF00; /* Links/active states on dark canvas */
+    --color-live: #EF4444;            /* Live badge red */
+    --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* ==========================================================================
+   LIGHT MODE OVERRIDES (Triggered via body.light-theme or [data-theme="light"])
+   ========================================================================== */
+body.light-theme,
+[data-theme="light"],
+html[data-theme="light"] body {
+    /* 1. The Canvas Swap (Light Mode) */
+    --color-bg: #F8F9FA;              /* Crisp, clean white canvas */
+    --color-surface: #FFFFFF;         /* Soft, clean white cards */
+    --color-surface-alt: #F3F4F6;     /* Soft grey inputs inside cards */
+    --color-navbar: #F3F4F6;          /* Clean light-grey header bar */
+    --color-search-bg: #E5E7EB;       /* Soft grey search bar background */
+    --color-border: #E5E7EB;          /* Thin #E5E7EB card & section border */
+
+    /* 2. Typography Overhaul (Light Mode Hierarchy) */
+    --color-heading: #111827;         /* Main Headings: Deep Charcoal */
+    --color-title: #1F2937;           /* Video Titles: Dark Grey */
+    --color-text: #1F2937;            /* Standard body text: Dark Grey */
+    --color-text-muted: #6B7280;      /* Metadata: Muted Slate */
+    --color-nav-link: #1F2937;        /* Navbar links: Dark Grey */
+
+    /* 3. Accent Color Adaptation */
+    --color-accent: #CCFF00;          /* Keep neon background for pills/buttons */
+    --color-accent-text: #111827;     /* Sharp Dark Charcoal text on neon pill */
+    --color-accent-readable: #111827; /* Never use neon text on white background */
+    --color-live: #DC2626;
+    --shadow-card: 0 4px 14px rgba(17, 24, 39, 0.06);
+}
+
+/* ==========================================================================
+   BASE RESET & TYPOGRAPHY HIERARCHY
+   ========================================================================== */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Main Headings (Top Trending, Live Now, My Profile, etc.) */
+h1, h2, .section-header h2, .auth-card h2 {
+    color: var(--color-heading);
+    font-weight: 700;
+}
+
+/* Video Titles & Card Subheadings */
+h3, h4, .video-info h3, .short-card h3 {
+    color: var(--color-title);
+    font-weight: 600;
+}
+
+/* Metadata (Cricket • 48500 views) */
+.video-meta, p {
+    color: var(--color-text-muted);
+}
+
+a {
+    color: var(--color-text);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+/* ==========================================================================
+   THE NAVBAR & SEARCH BAR
+   ========================================================================== */
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 14px 32px;
+    background-color: var(--color-navbar);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.navbar-logo {
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    color: var(--color-heading);
+}
+
+.navbar-logo span {
+    color: #111827;
+    background-color: var(--color-accent);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 2px;
+}
+
+.navbar-links {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+}
+
+.navbar-links a {
+    color: var(--color-nav-link);
+    font-weight: 500;
+    font-size: 0.95rem;
+    padding-bottom: 4px;
+    border-bottom: 2px solid transparent;
+}
+
+.navbar-links a:hover,
+.navbar-links a.active {
+    color: var(--color-heading);
+    border-bottom-color: var(--color-accent);
+}
+
+/* Search Bar */
+.navbar-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: var(--color-search-bg);
+    border: 1px solid var(--color-border);
+    padding: 8px 14px;
+    border-radius: 8px;
+    min-width: 260px;
+}
+
+.navbar-search span {
+    color: var(--color-text-muted); /* Dark grey icon in Light Mode */
+    font-size: 0.9rem;
+}
+
+.navbar-search input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--color-title);
+    width: 100%;
+    font-size: 0.9rem;
+}
+
+.navbar-search input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.navbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.navbar-actions a {
+    color: var(--color-nav-link);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--color-heading);
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   TOGGLE SWITCHES (HIDE SCORES & THEME TOGGLE)
+   ========================================================================== */
+.pill-toggle-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.pill-toggle-label {
+    font-size: 0.85rem;
+    color: var(--color-nav-link);
+    font-weight: 500;
+}
+
+.switch-toggle {
+    width: 44px;
+    height: 24px;
+    border-radius: 999px;
+    background-color: var(--color-surface-alt);
+    border: 1px solid var(--color-border);
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.switch-toggle::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: var(--color-text-muted);
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.switch-toggle[aria-checked="true"] {
+    background-color: rgba(204, 255, 0, 0.22);
+    border-color: #84CC16;
+}
+
+.switch-toggle[aria-checked="true"]::after {
+    transform: translateX(20px);
+    background-color: var(--color-accent);
+    box-shadow: 0 0 4px rgba(17, 24, 39, 0.4);
+}
+
+/* ==========================================================================
+   PAGE SECTIONS & HERO BANNER
+   ========================================================================== */
+.page-section {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 28px 32px;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+.section-header a {
+    color: var(--color-heading);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.hero-banner {
+    background-color: var(--color-surface);
+    background-size: cover;
+    background-position: center;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    padding: 48px 36px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+}
+
+.hero-banner::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(11, 15, 25, 0.92) 0%, rgba(11, 15, 25, 0.45) 100%);
+}
+
+.hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 620px;
+}
+
+.hero-content h1 {
+    color: #FFFFFF;
+    font-size: 2rem;
+    margin: 10px 0;
+}
+
+.hero-content p {
+    color: #E5E7EB;
+}
+
+/* ==========================================================================
+   VIDEO CARDS & "RESULT HIDDEN" NEON PILL RULE
+   ========================================================================== */
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 22px;
+}
+
+.video-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.video-card:hover {
+    transform: translateY(-3px);
+}
+
+.video-thumb {
+    width: 100%;
+    height: 165px;
+    background-color: var(--color-surface-alt);
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-info {
+    padding: 14px 16px;
+}
+
+.video-info h3 {
+    font-size: 1rem;
+    color: var(--color-title);
+    margin-bottom: 6px;
+    line-height: 1.35;
+}
+
+.video-meta {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+/* THE RULE: Keep neon background for "Result Hidden" & Featured pills,
+   with sharp dark charcoal (#111827) text & icon in BOTH themes! */
+.spoiler-pill,
+.reveal-btn,
+.badge-featured {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: var(--color-accent);
+    color: #111827 !important; /* Always sharp Dark Charcoal (#111827) */
+    font-weight: 700;
+    font-size: 0.82rem;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.spoiler-pill *,
+.reveal-btn * {
+    color: #111827 !important; /* Ensures the lock icon inside stays dark charcoal */
+}
+
+.badge-live {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: var(--color-live);
+    color: #FFFFFF;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+/* ==========================================================================
+   SHORTS, CATEGORIES & FAQ
+   ========================================================================== */
+.shorts-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.short-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+}
+
+.short-thumb {
+    width: 100%;
+    height: 260px;
+    background-color: var(--color-surface-alt);
+}
+
+.category-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.category-pill {
+    background-color: var(--color-surface);
+    color: var(--color-title);
+    border: 1px solid var(--color-border);
+    padding: 10px 20px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.category-pill:hover {
+    background-color: var(--color-accent);
+    color: #111827;
+    border-color: var(--color-accent);
+}
+
+.faq-item {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+}
+
+/* ==========================================================================
+   AUTH & PROFILE CARDS (Login, Register, Profile, Edit Profile)
+   ========================================================================== */
+.auth-card {
+    max-width: 440px;
+    margin: 24px auto;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: var(--shadow-card);
+}
+
+.auth-card input[type="text"],
+.auth-card input[type="email"],
+.auth-card input[type="password"] {
+    width: 100%;
+    padding: 11px 14px;
+    background-color: var(--color-surface-alt);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-title);
+    font-size: 0.95rem;
+}
+
+.btn-accent {
+    background-color: var(--color-accent);
+    color: #111827 !important; /* Sharp dark charcoal text on neon button */
+    font-weight: 700;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    display: inline-block;
+}
+
+.btn-outline {
+    background-color: transparent;
+    color: var(--color-title);
+    border: 1px solid var(--color-border);
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    display: inline-block;
+}
+
+.link-btn {
+    background: none;
+    border: none;
+    color: var(--color-nav-link);
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.form-error {
+    background-color: rgba(239, 68, 68, 0.12);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+}
+
+.form-success {
+    background-color: rgba(132, 204, 22, 0.15);
+    color: var(--color-heading);
+    border: 1px solid #84CC16;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+}
